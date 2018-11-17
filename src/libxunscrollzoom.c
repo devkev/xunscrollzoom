@@ -43,35 +43,23 @@
 #include <X11/extensions/XInput2.h>
 
 
-static int debug = 0;
-
-static const char libxunscrollzoom_debug_envvar[] = "LIBXUNSCROLLZOOM_DEBUG";
-
-static int do_debug() {
-	return (debug || getenv(libxunscrollzoom_debug_envvar));
-}
-
+#if defined(DEBUG)
 static void _dprintf(const char *name, const char *fmt, ...) {
 	va_list ap;
-	if (do_debug()) {
-		fprintf(stderr, "libxunscrollzoom: ");
-		if (name) {
-			fprintf(stderr, "%s: ", name);
-		}
-		va_start(ap, fmt);
-		vfprintf(stderr, fmt, ap);
-		va_end(ap);
-		fflush(stderr);
-	}
+    fprintf(stderr, "libxunscrollzoom: %s: ", name);
+    va_start(ap, fmt);
+    vfprintf(stderr, fmt, ap);
+    va_end(ap);
+    fflush(stderr);
 }
+#else
+#define _dprintf(...)
+#endif
+
 
 static void _eprintf(int exitcode, const char *name, const char *fmt, ...) {
 	va_list ap;
-	fprintf(stderr, "libxunscrollzoom: ");
-	if (name) {
-		fprintf(stderr, "%s: ", name);
-	}
-	fprintf(stderr, "Error: ");
+	fprintf(stderr, "libxunscrollzoom: %s: Error: ", name);
 	va_start(ap, fmt);
 	vfprintf(stderr, fmt, ap);
 	va_end(ap);
@@ -94,10 +82,6 @@ static void _libxunscrollzoom_init(void) {
 
 	_dprintf(myname, "starting up\n");
 
-	if (getenv(libxunscrollzoom_debug_envvar)) {
-        debug = 1;
-    }
-
 	if (!lib_handle) {
 		dlerror();
 #if defined(RTLD_NEXT)
@@ -116,7 +100,7 @@ static void _libxunscrollzoom_init(void) {
 }
 
 static void _libxunscrollzoom_fini(void) {
-	_dprintf(NULL, "shutting down\n");
+	_dprintf("fini", "shutting down\n");
 }
 
 
@@ -157,20 +141,22 @@ rettype fnname signature { \
 
 
 static void fixXEvent(Display *display, XEvent *event) {
+	static const char *myname = "fixXEvent";
+
 	if (event == NULL) {
 		return;
 	}
 
 	if (event->type == ButtonPress || event->type == ButtonRelease) {
-        _dprintf("fixXEvent", "ButtonPress || ButtonRelease\n");
+        _dprintf(myname, "ButtonPress || ButtonRelease\n");
 		if (event->xbutton.button == 4 || event->xbutton.button == 5) {
-			_dprintf("fixXEvent", "scroll button\n");
+			_dprintf(myname, "scroll button\n");
             if (event->xbutton.state & ControlMask) {
-                _dprintf("fixXEvent", "SCROLL ZOOMING\n");
+                _dprintf(myname, "SCROLL ZOOMING\n");
             }
 			event->xbutton.state &= ~ControlMask;
 		} else {
-            _dprintf("fixXEvent", "button = %d\n", event->xbutton.button);
+            _dprintf(myname, "button = %d\n", event->xbutton.button);
         }
 	}
 }
@@ -307,21 +293,23 @@ static Bool xi2initialised = False;
 static int xi2opcode = -1;
 
 static void fixXI2Event(Display *display, XGenericEventCookie *event) {
+	static const char *myname = "fixXI2Event";
+
     if (event->evtype == XI_ButtonPress || event->evtype == XI_ButtonRelease) {
-        _dprintf("fixXI2Event", "XI_ButtonPress || XI_ButtonRelease\n");
+        _dprintf(myname, "XI_ButtonPress || XI_ButtonRelease\n");
 
         XIDeviceEvent *xi2ev = (XIDeviceEvent*) event->data;
 
-        _dprintf("fixXI2Event", "xi2ev->detail = %u\n", xi2ev->detail);
-        _dprintf("fixXI2Event", "xi2ev->mods.base = 0x%x\n", xi2ev->mods.base);
-        _dprintf("fixXI2Event", "xi2ev->mods.latched = 0x%x\n", xi2ev->mods.latched);
-        _dprintf("fixXI2Event", "xi2ev->mods.locked = 0x%x\n", xi2ev->mods.locked);
-        _dprintf("fixXI2Event", "xi2ev->mods.effective = 0x%x\n", xi2ev->mods.effective);
+        _dprintf(myname, "xi2ev->detail = %u\n", xi2ev->detail);
+        _dprintf(myname, "xi2ev->mods.base = 0x%x\n", xi2ev->mods.base);
+        _dprintf(myname, "xi2ev->mods.latched = 0x%x\n", xi2ev->mods.latched);
+        _dprintf(myname, "xi2ev->mods.locked = 0x%x\n", xi2ev->mods.locked);
+        _dprintf(myname, "xi2ev->mods.effective = 0x%x\n", xi2ev->mods.effective);
 
 		if (xi2ev->detail == 4 || xi2ev->detail == 5) {
-			_dprintf("fixXI2Event", "scroll button\n");
+			_dprintf(myname, "scroll button\n");
             if (xi2ev->mods.effective & ControlMask) {
-                _dprintf("fixXI2Event", "SCROLL ZOOMING\n");
+                _dprintf(myname, "SCROLL ZOOMING\n");
             }
 			xi2ev->mods.base &= ~ControlMask;
 			xi2ev->mods.latched &= ~ControlMask;
@@ -347,9 +335,12 @@ __INTERCEPT__(
 
 
 static void fixCookieEvent(Display *display, XGenericEventCookie *event) {
+	static const char *myname = "fixCookieEvent";
+
 	if (event == NULL) {
 		return;
 	}
+
     if (xi2initialised && event->extension == xi2opcode) {
         fixXI2Event(display, event);
     }

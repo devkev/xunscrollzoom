@@ -52,8 +52,7 @@ while :; do
 			exit 0
 			;;
 		-d|--debug)
-			LIBXUNSCROLLZOOM_DEBUG=y
-			export LIBXUNSCROLLZOOM_DEBUG
+			lib_suffix="-debug"
 			shift
 			;;
 		*)
@@ -62,5 +61,5 @@ while :; do
 	esac
 done
 
-LD_PRELOAD="@libdir@/libxunscrollzoom.so:$LD_PRELOAD" exec "$@"
+LD_PRELOAD="@libdir@/libxunscrollzoom${lib_suffix}.so:$LD_PRELOAD" exec "$@"
 
