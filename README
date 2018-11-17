@@ -1,0 +1,59 @@
+
+LIBXUNSCROLLZOOM 0.1
+=====================
+
+by Kevin Pulo, kev@pulo.com.au
+https://github.com/devkev/libxunscrollzoom/
+Copyright (c) 2018
+Licensed under the GNU GPL v2 or higher, as per the COPYING file.
+
+
+DESCRIPTION
+-----------
+
+...
+
+
+INSTALLATION
+------------
+
+Standard autoconf process:  ./configure && make && make install
+
+
+USAGE
+-----
+
+    xunscrollzoom [options] <program> [args...]
+
+Valid options are:
+
+    -v, --version   Display the xunscrollzoom version
+    -h, --help      Display this help
+    -d, --debug     Display debug info
+
+
+EXAMPLEs
+--------
+
+...
+
+
+LIMITATIONS
+-----------
+
+- Only dynamically linked binaries
+
+
+FEEDBACK
+--------
+
+Comments, feature suggestions, bug reports, patches, etc are most
+welcome, please send them to Kevin Pulo <kev@pulo.com.au>.
+
+
+SEE ALSO
+--------
+
+...
+
+
