@@ -23,6 +23,7 @@
 #include <stdio.h>
 #include <stdarg.h>
 #include <stdlib.h>
+#include <string.h>
 
 /* Using _GNU_SOURCE as the manpage suggests can be problematic.
  * We only want the GNU extensions for dlfcn.h, not others like stdio.h.
@@ -39,6 +40,7 @@
 #include <unistd.h>
 
 #include <X11/Xlib.h>
+#include <X11/extensions/XInput2.h>
 
 
 static int debug = 0;
@@ -109,7 +111,7 @@ static void _libxunscrollzoom_init(void) {
 		}
 	}
 
-    // FIXME: default - clear LD_PRELOAD and all our envvars, unless there's an envvar set telling us not to.
+    // FIXME: optional - a "ONESHOT" envvar which tells us to clear LD_PRELOAD and all our envvars.
     //unsetenv("LD_PRELOAD");
 }
 
@@ -159,7 +161,6 @@ static void fixXEvent(Display *display, XEvent *event) {
 		return;
 	}
 
-
 	if (event->type == ButtonPress || event->type == ButtonRelease) {
         _dprintf("fixXEvent", "ButtonPress || ButtonRelease\n");
 		if (event->xbutton.button == 4 || event->xbutton.button == 5) {
@@ -171,28 +172,12 @@ static void fixXEvent(Display *display, XEvent *event) {
 		} else {
             _dprintf("fixXEvent", "button = %d\n", event->xbutton.button);
         }
-	//} else if (event->type == GenericEvent) {
-    //    _dprintf("fixXEvent", "evtype = %d\n", event->xgeneric.evtype);
-    //    _dprintf("fixXEvent", "evtype = %d\n", event->xcookie.evtype);
-    //    if (event->xcookie.evtype == ButtonPress || event->xcookie.evtype == ButtonRelease) {
-    //        _dprintf("fixXEvent", "ButtonPress || ButtonRelease\n");
-    //        if (XGetEventData(display, &event->xcookie)) {
-    //            XEvent *real = (XEvent*)event->xcookie.data;
-    //            if (real->xbutton.button == 4 || real->xbutton.button == 5) {
-    //                _dprintf("fixXEvent", "scroll button\n");
-    //            }
-    //        }
-    //        // fucken blerk, this whole protocol ain't cool for interception.
-    //        //XFreeEventData(display, &event->xcookie);
-    //    }
-    //} else {
-    //    _dprintf("fixXEvent", "type = %d\n", event->type);
 	}
 }
 
 
 #define FIX_EVENT fixXEvent(display, event);
-#define CHECK_FIX_EVENT if (retval) FIX_EVENT
+#define CHECK_EVENT(code) if (retval) { code }
 
 
 __INTERCEPT__(
@@ -228,7 +213,7 @@ __INTERCEPT__(
               (Display *display, Window w, long event_mask, XEvent *event),
               (display, w, event_mask, event),
 			  ,
-              CHECK_FIX_EVENT
+              CHECK_EVENT(FIX_EVENT)
 			 )
 
 __INTERCEPT__(
@@ -246,7 +231,7 @@ __INTERCEPT__(
               (Display *display, long event_mask, XEvent *event),
               (display, event_mask, event),
 			  ,
-              CHECK_FIX_EVENT
+              CHECK_EVENT(FIX_EVENT)
 			 )
 
 __INTERCEPT__(
@@ -255,7 +240,7 @@ __INTERCEPT__(
               (Display *display, int event_type, XEvent *event),
               (display, event_type, event),
 			  ,
-              CHECK_FIX_EVENT
+              CHECK_EVENT(FIX_EVENT)
 			 )
 
 __INTERCEPT__(
@@ -264,7 +249,7 @@ __INTERCEPT__(
               (Display *display, Window w, int event_type, XEvent *event),
               (display, w, event_type, event),
 			  ,
-              CHECK_FIX_EVENT
+              CHECK_EVENT(FIX_EVENT)
 			 )
 
 
@@ -304,7 +289,7 @@ __INTERCEPT__(
               (display, event, predicate, arg),
               SHIM_IFEVENT
               ,
-              CHECK_FIX_EVENT
+              CHECK_EVENT(FIX_EVENT)
 			 )
 
 __INTERCEPT__(
@@ -315,6 +300,70 @@ __INTERCEPT__(
               SHIM_IFEVENT
               ,
               FIX_EVENT
+			 )
+
+
+static Bool xi2initialised = False;
+static int xi2opcode = -1;
+
+static void fixXI2Event(Display *display, XGenericEventCookie *event) {
+    if (event->evtype == XI_ButtonPress || event->evtype == XI_ButtonRelease) {
+        _dprintf("fixXI2Event", "XI_ButtonPress || XI_ButtonRelease\n");
+
+        XIDeviceEvent *xi2ev = (XIDeviceEvent*) event->data;
+
+        _dprintf("fixXI2Event", "xi2ev->detail = %u\n", xi2ev->detail);
+        _dprintf("fixXI2Event", "xi2ev->mods.base = 0x%x\n", xi2ev->mods.base);
+        _dprintf("fixXI2Event", "xi2ev->mods.latched = 0x%x\n", xi2ev->mods.latched);
+        _dprintf("fixXI2Event", "xi2ev->mods.locked = 0x%x\n", xi2ev->mods.locked);
+        _dprintf("fixXI2Event", "xi2ev->mods.effective = 0x%x\n", xi2ev->mods.effective);
+
+		if (xi2ev->detail == 4 || xi2ev->detail == 5) {
+			_dprintf("fixXI2Event", "scroll button\n");
+            if (xi2ev->mods.effective & ControlMask) {
+                _dprintf("fixXI2Event", "SCROLL ZOOMING\n");
+            }
+			xi2ev->mods.base &= ~ControlMask;
+			xi2ev->mods.latched &= ~ControlMask;
+			xi2ev->mods.locked &= ~ControlMask;
+			xi2ev->mods.effective &= ~ControlMask;
+        }
+	}
+}
+
+
+__INTERCEPT__(
+              Bool,
+              XQueryExtension,
+              (Display* display, _Xconst char* name, int* major_opcode_return, int* first_event_return, int* first_error_return),
+              (display, name, major_opcode_return, first_event_return, first_error_return),
+			  ,
+              if (retval && !strcmp(name, "XInputExtension") && major_opcode_return) {
+                  xi2initialised = True;
+                  xi2opcode = *major_opcode_return;
+                  _dprintf("XQueryExtension", "XI2 initialised\n");
+              }
+			 )
+
+
+static void fixCookieEvent(Display *display, XGenericEventCookie *event) {
+	if (event == NULL) {
+		return;
+	}
+    if (xi2initialised && event->extension == xi2opcode) {
+        fixXI2Event(display, event);
+    }
+}
+
+#define FIX_COOKIE_EVENT fixCookieEvent(display, event);
+
+__INTERCEPT__(
+              Bool,
+              XGetEventData,
+              (Display* display, XGenericEventCookie *event),
+              (display, event),
+			  ,
+              CHECK_EVENT(FIX_COOKIE_EVENT)
 			 )
 
 
