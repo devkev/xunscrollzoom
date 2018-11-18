@@ -52,8 +52,10 @@ static void _dprintf(const char *name, const char *fmt, ...) {
     va_end(ap);
     fflush(stderr);
 }
+#define MYNAME(x) static const char *myname = #x;
 #else
 #define _dprintf(...)
+#define MYNAME(x)
 #endif
 
 
@@ -71,29 +73,16 @@ static void _eprintf(int exitcode, const char *name, const char *fmt, ...) {
 
 
 static void *lib_handle = NULL;
+static const char *lib_name = "libX11.so.6";
 
 
 static void _libxunscrollzoom_init(void) __attribute__((constructor));
 static void _libxunscrollzoom_fini(void) __attribute__((destructor));
 
 static void _libxunscrollzoom_init(void) {
-	static const char *myname = "init";
-	static const char *mylib = "libX11.so.6";
+	_dprintf("init", "starting up\n");
 
-	_dprintf(myname, "starting up\n");
-
-	if (!lib_handle) {
-		dlerror();
-#if defined(RTLD_NEXT)
-		lib_handle = RTLD_NEXT;
-#else
-		lib_handle = dlopen(mylib, RTLD_LAZY);
-#endif
-		_dprintf(myname, "lib_handle = 0x%x\n", lib_handle);
-		if (!lib_handle) {
-			_eprintf(1, myname, "Unable to find %s: %s\n", mylib, dlerror());
-		}
-	}
+    // FIXME: tabs vs spaces
 
     // FIXME: optional - a "ONESHOT" envvar which tells us to clear LD_PRELOAD and all our envvars.
     //unsetenv("LD_PRELOAD");
@@ -102,6 +91,53 @@ static void _libxunscrollzoom_init(void) {
 static void _libxunscrollzoom_fini(void) {
 	_dprintf("fini", "shutting down\n");
 }
+
+
+Display *XOpenDisplay(_Xconst char *display_name) {
+	static const char *myname = "XOpenDisplay";
+	static Display *(*underlying) (_Xconst char *display_name);
+	Display *retval;
+	const char *err;
+
+	_dprintf(myname, "entered\n");
+
+    // This lives in XOpenDisplay, rather than init(), because it's not cool to be dlopening libX11.so for every single binary that gets run.
+    // This way it only happens for things that actually want to use X11.
+	if (!lib_handle) {
+		dlerror();
+#if defined(RTLD_NEXT)
+		lib_handle = RTLD_NEXT;
+#else
+		lib_handle = dlopen(lib_name, RTLD_LAZY);
+#endif
+		_dprintf(myname, "lib_handle = 0x%x\n", lib_handle);
+		if (!lib_handle) {
+			_eprintf(1, myname, "Unable to find %s: %s\n", lib_name, dlerror());
+		}
+	}
+
+    // FIXME: dlsym *ALL* the underlying function pointer at the same time - mostly to save the branch on every intercepted function call. but also to fail early.
+	if (!underlying) {
+		dlerror();
+		underlying = dlsym(lib_handle, myname);
+		_dprintf(myname, "underlying = 0x%x\n", underlying);
+		err = dlerror();
+		if (err) {
+			_dprintf(myname, "err = \"%s\"\n", err);
+		}
+		if (!underlying || err) {
+			_eprintf(1, myname, "Unable to find the underlying function: %s\n", dlerror());
+		}
+	}
+
+	_dprintf(myname, "about to call underlying function\n");
+	retval = (*underlying) (display_name);
+	_dprintf(myname, "underlying function result = %d\n", retval);
+
+	_dprintf(myname, "function result = %d\n", retval);
+	return retval;
+}
+
 
 
 // signature and params need enclosing brackets
@@ -141,7 +177,7 @@ rettype fnname signature { \
 
 
 static void fixXEvent(Display *display, XEvent *event) {
-	static const char *myname = "fixXEvent";
+	MYNAME(fixXEvent)
 
 	if (event == NULL) {
 		return;
@@ -293,7 +329,7 @@ static Bool xi2initialised = False;
 static int xi2opcode = -1;
 
 static void fixXI2Event(Display *display, XGenericEventCookie *event) {
-	static const char *myname = "fixXI2Event";
+	MYNAME(fixXI2Event)
 
     if (event->evtype == XI_ButtonPress || event->evtype == XI_ButtonRelease) {
         _dprintf(myname, "XI_ButtonPress || XI_ButtonRelease\n");
@@ -335,8 +371,6 @@ __INTERCEPT__(
 
 
 static void fixCookieEvent(Display *display, XGenericEventCookie *event) {
-	static const char *myname = "fixCookieEvent";
-
 	if (event == NULL) {
 		return;
 	}
