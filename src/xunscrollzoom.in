@@ -34,6 +34,9 @@ function help {
 	echo "    -v, --version   Display the xunscrollzoom version"
 	echo "    -h, --help      Display this help"
 	echo "    -d, --debug     Display debug info"
+	echo ""
+	echo "    --single        Affect only the specified program, and not any"
+	echo "                    other subsequently forked processes"
 }
 
 if [ $# -eq 0 ]; then
@@ -54,6 +57,10 @@ while :; do
 		-d|--debug)
 			lib_suffix="-debug"
 			shift
+			;;
+		--single)
+			XUNSCROLLZOOM_SINGLE=y
+			export XUNSCROLLZOOM_SINGLE
 			;;
 		*)
 			break

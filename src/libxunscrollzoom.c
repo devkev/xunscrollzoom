@@ -24,6 +24,7 @@
 #include <stdarg.h>
 #include <stdlib.h>
 #include <string.h>
+#include <ctype.h>
 
 /* Using _GNU_SOURCE as the manpage suggests can be problematic.
  * We only want the GNU extensions for dlfcn.h, not others like stdio.h.
@@ -71,14 +72,29 @@ static void fatalError(int exitcode, const char *name, const char *fmt, ...) {
 
 
 
+static const char libxunscrollzoom_envvar_single[] = "XUNSCROLLZOOM_SINGLE";
+
+
 static void _libxunscrollzoom_init(void) __attribute__((constructor));
 static void _libxunscrollzoom_fini(void) __attribute__((destructor));
 
 static void _libxunscrollzoom_init(void) {
 	debug("init", "starting up\n");
 
-	// FIXME: optional - a "ONESHOT" envvar which tells us to clear LD_PRELOAD and all our envvars.
-	//unsetenv("LD_PRELOAD");
+	if (getenv(libxunscrollzoom_envvar_single)) {
+		const char *ld_preload = getenv("LD_PRELOAD");
+		if (ld_preload == NULL) {
+			// wtf?
+		} else {
+			// FIXME: remove ourselves properly
+			unsigned int i = 0;
+			while (ld_preload[i] && ld_preload[i] != ':' && !isspace(ld_preload[i])) {
+				i++;
+			}
+			setenv("LD_PRELOAD", ld_preload + i, 1);
+		}
+		// FIXME: should we also clear libxunscrollzoom_envvar_single ?  There are arguments for and against...
+	}
 }
 
 static void _libxunscrollzoom_fini(void) {
