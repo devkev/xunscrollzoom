@@ -79,7 +79,7 @@ static void _libxunscrollzoom_init(void) __attribute__((constructor));
 static void _libxunscrollzoom_fini(void) __attribute__((destructor));
 
 static void _libxunscrollzoom_init(void) {
-	debug("init", "starting up\n");
+	debug("init", "starting up, LD_PRELOAD = \"%s\"\n", getenv("LD_PRELOAD"));
 
 	if (getenv(libxunscrollzoom_envvar_single)) {
 		const char *ld_preload = getenv("LD_PRELOAD");
@@ -109,17 +109,17 @@ static rettype (*underlying_##fnname) signature; \
 rettype fnname signature { \
 	rettype retval; \
  \
-	debug(#fnname, "entered\n"); \
+	debug(#fnname, "entered %p\n", fnname); \
  \
 	precall \
  \
-	debug(#fnname, "about to call underlying function\n"); \
+	debug(#fnname, "about to call underlying function at %p\n", underlying_##fnname); \
 	retval = (*underlying_##fnname) params; \
-	debug(#fnname, "underlying function result = %d\n", retval); \
+	debug(#fnname, "underlying function result = 0x%x\n", retval); \
  \
 	postcall \
  \
-	debug(#fnname, "function result = %d\n", retval); \
+	debug(#fnname, "function result = 0x%x\n", retval); \
 	return retval; \
 } \
 
@@ -133,18 +133,18 @@ rettype fnname signature { \
 static void *lib_handle = NULL;
 static const char *lib_name = "libX11.so.6";
 
-void registerAllIntercepts();
-void registerLibHandle();
+static void registerLibHandle();
+static void registerAllIntercepts();
 
 #define REGISTER_INTERCEPT_1 REGISTER_INTERCEPT_0 REGISTER_INTERCEPT(XOpenDisplay)
 __INTERCEPT__(
-			XOpenDisplay,
-			Display*,
-			(_Xconst char *display_name),
-			(display_name),
-				registerLibHandle();
-				registerAllIntercepts();
-			,
+				XOpenDisplay,
+				Display*,
+				(_Xconst char *display_name),
+				(display_name),
+					registerLibHandle();
+					registerAllIntercepts();
+				,
 			 )
 
 
@@ -400,14 +400,14 @@ __INTERCEPT__(
 
 
 
-void *registerIntercept(const char *fnname) {
+static void *registerIntercept(const char *fnname) {
 	static const char *myname = "registerIntercept";
 	void *underlying;
 	const char *err;
 
 	dlerror();
 	underlying = dlsym(lib_handle, fnname);
-	debug(myname, "underlying %s = 0x%x\n", fnname, underlying);
+	debug(myname, "underlying %s = %p\n", fnname, underlying);
 	err = dlerror();
 	if (err) {
 		debug(myname, "err = \"%s\"\n", err);
@@ -418,7 +418,7 @@ void *registerIntercept(const char *fnname) {
 	return underlying;
 }
 
-void registerLibHandle() {
+static void registerLibHandle() {
 	static const char *myname = "registerLibHandle";
 	// This is called from XOpenDisplay, rather than init(), because it's not cool to be dlopening libX11.so for every single binary that gets run.
 	// This way it only happens for things that actually want to use X11.
@@ -437,7 +437,7 @@ void registerLibHandle() {
 	}
 }
 
-void registerAllIntercepts() {
+static void registerAllIntercepts() {
 	REGISTER_INTERCEPT_FINAL
 }
 
