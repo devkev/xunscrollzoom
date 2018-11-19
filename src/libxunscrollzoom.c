@@ -66,14 +66,9 @@ static void _eprintf(int exitcode, const char *name, const char *fmt, ...) {
 	vfprintf(stderr, fmt, ap);
 	va_end(ap);
 	fflush(stderr);
+    exit(exitcode);
 }
 
-
-
-
-
-static void *lib_handle = NULL;
-static const char *lib_name = "libX11.so.6";
 
 
 static void _libxunscrollzoom_init(void) __attribute__((constructor));
@@ -93,79 +88,19 @@ static void _libxunscrollzoom_fini(void) {
 }
 
 
-Display *XOpenDisplay(_Xconst char *display_name) {
-	static const char *myname = "XOpenDisplay";
-	static Display *(*underlying) (_Xconst char *display_name);
-	Display *retval;
-	const char *err;
-
-	_dprintf(myname, "entered\n");
-
-    // This lives in XOpenDisplay, rather than init(), because it's not cool to be dlopening libX11.so for every single binary that gets run.
-    // This way it only happens for things that actually want to use X11.
-	if (!lib_handle) {
-		dlerror();
-#if defined(RTLD_NEXT)
-		lib_handle = RTLD_NEXT;
-#else
-		lib_handle = dlopen(lib_name, RTLD_LAZY);
-#endif
-		_dprintf(myname, "lib_handle = 0x%x\n", lib_handle);
-		if (!lib_handle) {
-			_eprintf(1, myname, "Unable to find %s: %s\n", lib_name, dlerror());
-		}
-	}
-
-    // FIXME: dlsym *ALL* the underlying function pointer at the same time - mostly to save the branch on every intercepted function call. but also to fail early.
-	if (!underlying) {
-		dlerror();
-		underlying = dlsym(lib_handle, myname);
-		_dprintf(myname, "underlying = 0x%x\n", underlying);
-		err = dlerror();
-		if (err) {
-			_dprintf(myname, "err = \"%s\"\n", err);
-		}
-		if (!underlying || err) {
-			_eprintf(1, myname, "Unable to find the underlying function: %s\n", dlerror());
-		}
-	}
-
-	_dprintf(myname, "about to call underlying function\n");
-	retval = (*underlying) (display_name);
-	_dprintf(myname, "underlying function result = %d\n", retval);
-
-	_dprintf(myname, "function result = %d\n", retval);
-	return retval;
-}
-
-
 
 // signature and params need enclosing brackets
-#define __INTERCEPT__(rettype, fnname, signature, params, precall, postcall) \
+#define __INTERCEPT__(fnname, rettype, signature, params, precall, postcall) \
+static rettype (*underlying_##fnname) signature; \
 rettype fnname signature { \
-	static rettype (*underlying) signature; \
 	rettype retval; \
-	const char *err; \
  \
 	_dprintf(#fnname, "entered\n"); \
- \
-	if (!underlying) { \
-		dlerror(); \
-		underlying = dlsym(lib_handle, #fnname); \
-		_dprintf(#fnname, "underlying = 0x%x\n", underlying); \
-		err = dlerror(); \
-		if (err) { \
-			_dprintf(#fnname, "err = \"%s\"\n", err); \
-		} \
-		if (!underlying || err) { \
-			_eprintf(1, #fnname, "Unable to find the underlying function: %s\n", dlerror()); \
-		} \
-	} \
  \
 	precall \
  \
 	_dprintf(#fnname, "about to call underlying function\n"); \
-	retval = (*underlying) params; \
+	retval = (*underlying_##fnname) params; \
 	_dprintf(#fnname, "underlying function result = %d\n", retval); \
  \
 	postcall \
@@ -173,6 +108,32 @@ rettype fnname signature { \
 	_dprintf(#fnname, "function result = %d\n", retval); \
 	return retval; \
 } \
+
+#define REGISTER_INTERCEPT(fnname) underlying_##fnname = registerIntercept(#fnname);
+#define REGISTER_INTERCEPT_0
+
+
+
+
+
+static void *lib_handle = NULL;
+static const char *lib_name = "libX11.so.6";
+
+void registerAllIntercepts();
+void registerLibHandle();
+
+#define REGISTER_INTERCEPT_1 REGISTER_INTERCEPT_0 REGISTER_INTERCEPT(XOpenDisplay)
+__INTERCEPT__(
+              XOpenDisplay,
+              Display*,
+              (_Xconst char *display_name),
+              (display_name),
+                  registerLibHandle();
+                  registerAllIntercepts();
+			  ,
+			 )
+
+
 
 
 
@@ -197,77 +158,90 @@ static void fixXEvent(Display *display, XEvent *event) {
 	}
 }
 
-
 #define FIX_EVENT fixXEvent(display, event);
 #define CHECK_EVENT(code) if (retval) { code }
 
 
-__INTERCEPT__(
-              int,
-              XNextEvent,
-			  (Display *display, XEvent *event),
-			  (display, event),
-			  ,
-              FIX_EVENT
-			 )
 
+
+
+
+
+#define REGISTER_INTERCEPT_2 REGISTER_INTERCEPT_1 REGISTER_INTERCEPT(XNextEvent)
 __INTERCEPT__(
+              XNextEvent,
               int,
-              XPeekEvent,
               (Display *display, XEvent *event),
               (display, event),
 			  ,
               FIX_EVENT
 			 )
 
+
+#define REGISTER_INTERCEPT_3 REGISTER_INTERCEPT_2 REGISTER_INTERCEPT(XPeekEvent)
 __INTERCEPT__(
+              XPeekEvent,
               int,
+              (Display *display, XEvent *event),
+              (display, event),
+			  ,
+              FIX_EVENT
+			 )
+
+#define REGISTER_INTERCEPT_4 REGISTER_INTERCEPT_3 REGISTER_INTERCEPT(XWindowEvent)
+__INTERCEPT__(
               XWindowEvent,
-              (Display *display, Window w, long event_mask, XEvent *event),
-              (display, w, event_mask, event),
-			  ,
-              FIX_EVENT
-			 )
-
-__INTERCEPT__(
-              Bool,
-              XCheckWindowEvent,
-              (Display *display, Window w, long event_mask, XEvent *event),
-              (display, w, event_mask, event),
-			  ,
-              CHECK_EVENT(FIX_EVENT)
-			 )
-
-__INTERCEPT__(
               int,
+              (Display *display, Window w, long event_mask, XEvent *event),
+              (display, w, event_mask, event),
+			  ,
+              FIX_EVENT
+			 )
+
+#define REGISTER_INTERCEPT_5 REGISTER_INTERCEPT_4 REGISTER_INTERCEPT(XCheckWindowEvent)
+__INTERCEPT__(
+              XCheckWindowEvent,
+              Bool,
+              (Display *display, Window w, long event_mask, XEvent *event),
+              (display, w, event_mask, event),
+			  ,
+              CHECK_EVENT(FIX_EVENT)
+			 )
+
+#define REGISTER_INTERCEPT_6 REGISTER_INTERCEPT_5 REGISTER_INTERCEPT(XMaskEvent)
+__INTERCEPT__(
               XMaskEvent,
+              int,
               (Display *display, long event_mask, XEvent *event),
               (display, event_mask, event),
 			  ,
               FIX_EVENT
 			 )
 
+#define REGISTER_INTERCEPT_7 REGISTER_INTERCEPT_6 REGISTER_INTERCEPT(XCheckMaskEvent)
 __INTERCEPT__(
-              Bool,
               XCheckMaskEvent,
+              Bool,
               (Display *display, long event_mask, XEvent *event),
               (display, event_mask, event),
 			  ,
               CHECK_EVENT(FIX_EVENT)
 			 )
 
+#define REGISTER_INTERCEPT_8 REGISTER_INTERCEPT_7 REGISTER_INTERCEPT(XCheckTypedEvent)
 __INTERCEPT__(
-              Bool,
               XCheckTypedEvent,
+              Bool,
               (Display *display, int event_type, XEvent *event),
               (display, event_type, event),
 			  ,
               CHECK_EVENT(FIX_EVENT)
 			 )
 
+#define REGISTER_INTERCEPT_9 REGISTER_INTERCEPT_8 REGISTER_INTERCEPT(XCheckTypedWindowEvent)
 __INTERCEPT__(
-              Bool,
               XCheckTypedWindowEvent,
+              Bool,
               (Display *display, Window w, int event_type, XEvent *event),
               (display, w, event_type, event),
 			  ,
@@ -294,9 +268,10 @@ static Bool shimPredicate(Display *display, XEvent *event, XPointer arg) {
     predicate = shimPredicate; \
 
 
+#define REGISTER_INTERCEPT_10 REGISTER_INTERCEPT_9 REGISTER_INTERCEPT(XIfEvent)
 __INTERCEPT__(
-              int,
               XIfEvent,
+              int,
               (Display *display, XEvent *event, Bool (*predicate)(), XPointer arg),
               (display, event, predicate, arg),
               SHIM_IFEVENT
@@ -304,9 +279,10 @@ __INTERCEPT__(
               FIX_EVENT
 			 )
 
+#define REGISTER_INTERCEPT_11 REGISTER_INTERCEPT_10 REGISTER_INTERCEPT(XCheckIfEvent)
 __INTERCEPT__(
-              Bool,
               XCheckIfEvent,
+              Bool,
               (Display *display, XEvent *event, Bool (*predicate)(), XPointer arg),
               (display, event, predicate, arg),
               SHIM_IFEVENT
@@ -314,9 +290,10 @@ __INTERCEPT__(
               CHECK_EVENT(FIX_EVENT)
 			 )
 
+#define REGISTER_INTERCEPT_12 REGISTER_INTERCEPT_11 REGISTER_INTERCEPT(XPeekIfEvent)
 __INTERCEPT__(
-              int,
               XPeekIfEvent,
+              int,
               (Display *display, XEvent *event, Bool (*predicate)(), XPointer arg),
               (display, event, predicate, arg),
               SHIM_IFEVENT
@@ -356,9 +333,10 @@ static void fixXI2Event(Display *display, XGenericEventCookie *event) {
 }
 
 
+#define REGISTER_INTERCEPT_13 REGISTER_INTERCEPT_12 REGISTER_INTERCEPT(XQueryExtension)
 __INTERCEPT__(
-              Bool,
               XQueryExtension,
+              Bool,
               (Display* display, _Xconst char* name, int* major_opcode_return, int* first_event_return, int* first_error_return),
               (display, name, major_opcode_return, first_event_return, first_error_return),
 			  ,
@@ -382,14 +360,58 @@ static void fixCookieEvent(Display *display, XGenericEventCookie *event) {
 
 #define FIX_COOKIE_EVENT fixCookieEvent(display, event);
 
+#define REGISTER_INTERCEPT_14 REGISTER_INTERCEPT_13 REGISTER_INTERCEPT(XGetEventData)
 __INTERCEPT__(
-              Bool,
               XGetEventData,
+              Bool,
               (Display* display, XGenericEventCookie *event),
               (display, event),
 			  ,
               CHECK_EVENT(FIX_COOKIE_EVENT)
 			 )
 
+#define REGISTER_INTERCEPT_FINAL REGISTER_INTERCEPT_14
 
+
+
+void *registerIntercept(const char *fnname) {
+	static const char *myname = "registerIntercept";
+    void *underlying;
+	const char *err;
+
+    dlerror();
+    underlying = dlsym(lib_handle, fnname);
+    _dprintf(myname, "underlying %s = 0x%x\n", fnname, underlying);
+    err = dlerror();
+    if (err) {
+        _dprintf(myname, "err = \"%s\"\n", err);
+    }
+    if (!underlying || err) {
+        _eprintf(1, myname, "Unable to find the underlying function %s: %s\n", fnname, dlerror());
+    }
+    return underlying;
+}
+
+void registerLibHandle() {
+	static const char *myname = "registerLibHandle";
+    // This is called from XOpenDisplay, rather than init(), because it's not cool to be dlopening libX11.so for every single binary that gets run.
+    // This way it only happens for things that actually want to use X11.
+    // And XOpenDisplay should only be called rarely/infrequently.
+	if (!lib_handle) {
+		dlerror();
+#if defined(RTLD_NEXT)
+		lib_handle = RTLD_NEXT;
+#else
+		lib_handle = dlopen(lib_name, RTLD_LAZY);
+#endif
+		_dprintf(myname, "lib_handle = 0x%x\n", lib_handle);
+		if (!lib_handle) {
+			_eprintf(1, myname, "Unable to find %s: %s\n", lib_name, dlerror());
+		}
+	}
+}
+
+void registerAllIntercepts() {
+    REGISTER_INTERCEPT_FINAL
+}
 
