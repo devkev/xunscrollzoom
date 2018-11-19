@@ -44,7 +44,7 @@
 
 
 #if defined(DEBUG)
-static void _dprintf(const char *name, const char *fmt, ...) {
+static void debug(const char *name, const char *fmt, ...) {
 	va_list ap;
     fprintf(stderr, "libxunscrollzoom: %s: ", name);
     va_start(ap, fmt);
@@ -54,12 +54,12 @@ static void _dprintf(const char *name, const char *fmt, ...) {
 }
 #define MYNAME(x) static const char *myname = #x;
 #else
-#define _dprintf(...)
+#define debug(...)
 #define MYNAME(x)
 #endif
 
 
-static void _eprintf(int exitcode, const char *name, const char *fmt, ...) {
+static void fatalError(int exitcode, const char *name, const char *fmt, ...) {
 	va_list ap;
 	fprintf(stderr, "libxunscrollzoom: %s: Error: ", name);
 	va_start(ap, fmt);
@@ -75,7 +75,7 @@ static void _libxunscrollzoom_init(void) __attribute__((constructor));
 static void _libxunscrollzoom_fini(void) __attribute__((destructor));
 
 static void _libxunscrollzoom_init(void) {
-	_dprintf("init", "starting up\n");
+	debug("init", "starting up\n");
 
     // FIXME: tabs vs spaces
 
@@ -84,7 +84,7 @@ static void _libxunscrollzoom_init(void) {
 }
 
 static void _libxunscrollzoom_fini(void) {
-	_dprintf("fini", "shutting down\n");
+	debug("fini", "shutting down\n");
 }
 
 
@@ -95,17 +95,17 @@ static rettype (*underlying_##fnname) signature; \
 rettype fnname signature { \
 	rettype retval; \
  \
-	_dprintf(#fnname, "entered\n"); \
+	debug(#fnname, "entered\n"); \
  \
 	precall \
  \
-	_dprintf(#fnname, "about to call underlying function\n"); \
+	debug(#fnname, "about to call underlying function\n"); \
 	retval = (*underlying_##fnname) params; \
-	_dprintf(#fnname, "underlying function result = %d\n", retval); \
+	debug(#fnname, "underlying function result = %d\n", retval); \
  \
 	postcall \
  \
-	_dprintf(#fnname, "function result = %d\n", retval); \
+	debug(#fnname, "function result = %d\n", retval); \
 	return retval; \
 } \
 
@@ -145,15 +145,15 @@ static void fixXEvent(Display *display, XEvent *event) {
 	}
 
 	if (event->type == ButtonPress || event->type == ButtonRelease) {
-        _dprintf(myname, "ButtonPress || ButtonRelease\n");
+        debug(myname, "ButtonPress || ButtonRelease\n");
 		if (event->xbutton.button == 4 || event->xbutton.button == 5) {
-			_dprintf(myname, "scroll button\n");
+			debug(myname, "scroll button\n");
             if (event->xbutton.state & ControlMask) {
-                _dprintf(myname, "SCROLL ZOOMING\n");
+                debug(myname, "SCROLL ZOOMING\n");
             }
 			event->xbutton.state &= ~ControlMask;
 		} else {
-            _dprintf(myname, "button = %d\n", event->xbutton.button);
+            debug(myname, "button = %d\n", event->xbutton.button);
         }
 	}
 }
@@ -309,20 +309,20 @@ static void fixXI2Event(Display *display, XGenericEventCookie *event) {
 	MYNAME(fixXI2Event)
 
     if (event->evtype == XI_ButtonPress || event->evtype == XI_ButtonRelease) {
-        _dprintf(myname, "XI_ButtonPress || XI_ButtonRelease\n");
+        debug(myname, "XI_ButtonPress || XI_ButtonRelease\n");
 
         XIDeviceEvent *xi2ev = (XIDeviceEvent*) event->data;
 
-        _dprintf(myname, "xi2ev->detail = %u\n", xi2ev->detail);
-        _dprintf(myname, "xi2ev->mods.base = 0x%x\n", xi2ev->mods.base);
-        _dprintf(myname, "xi2ev->mods.latched = 0x%x\n", xi2ev->mods.latched);
-        _dprintf(myname, "xi2ev->mods.locked = 0x%x\n", xi2ev->mods.locked);
-        _dprintf(myname, "xi2ev->mods.effective = 0x%x\n", xi2ev->mods.effective);
+        debug(myname, "xi2ev->detail = %u\n", xi2ev->detail);
+        debug(myname, "xi2ev->mods.base = 0x%x\n", xi2ev->mods.base);
+        debug(myname, "xi2ev->mods.latched = 0x%x\n", xi2ev->mods.latched);
+        debug(myname, "xi2ev->mods.locked = 0x%x\n", xi2ev->mods.locked);
+        debug(myname, "xi2ev->mods.effective = 0x%x\n", xi2ev->mods.effective);
 
 		if (xi2ev->detail == 4 || xi2ev->detail == 5) {
-			_dprintf(myname, "scroll button\n");
+			debug(myname, "scroll button\n");
             if (xi2ev->mods.effective & ControlMask) {
-                _dprintf(myname, "SCROLL ZOOMING\n");
+                debug(myname, "SCROLL ZOOMING\n");
             }
 			xi2ev->mods.base &= ~ControlMask;
 			xi2ev->mods.latched &= ~ControlMask;
@@ -343,7 +343,7 @@ __INTERCEPT__(
               if (retval && !strcmp(name, "XInputExtension") && major_opcode_return) {
                   xi2initialised = True;
                   xi2opcode = *major_opcode_return;
-                  _dprintf("XQueryExtension", "XI2 initialised\n");
+                  debug("XQueryExtension", "XI2 initialised\n");
               }
 			 )
 
@@ -381,13 +381,13 @@ void *registerIntercept(const char *fnname) {
 
     dlerror();
     underlying = dlsym(lib_handle, fnname);
-    _dprintf(myname, "underlying %s = 0x%x\n", fnname, underlying);
+    debug(myname, "underlying %s = 0x%x\n", fnname, underlying);
     err = dlerror();
     if (err) {
-        _dprintf(myname, "err = \"%s\"\n", err);
+        debug(myname, "err = \"%s\"\n", err);
     }
     if (!underlying || err) {
-        _eprintf(1, myname, "Unable to find the underlying function %s: %s\n", fnname, dlerror());
+        fatalError(1, myname, "Unable to find the underlying function %s: %s\n", fnname, dlerror());
     }
     return underlying;
 }
@@ -404,9 +404,9 @@ void registerLibHandle() {
 #else
 		lib_handle = dlopen(lib_name, RTLD_LAZY);
 #endif
-		_dprintf(myname, "lib_handle = 0x%x\n", lib_handle);
+		debug(myname, "lib_handle = 0x%x\n", lib_handle);
 		if (!lib_handle) {
-			_eprintf(1, myname, "Unable to find %s: %s\n", lib_name, dlerror());
+			fatalError(1, myname, "Unable to find %s: %s\n", lib_name, dlerror());
 		}
 	}
 }
