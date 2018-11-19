@@ -151,6 +151,15 @@ __INTERCEPT__(
 
 
 
+// Seems most software (terminology and firefox at least) also zoom when ctrl + horizontal scroll.
+// So include buttons 6 & 7 as well.
+#define MASKED_BUTTONS_CASES \
+	case 4: \
+	case 5: \
+	case 6: \
+	case 7
+
+
 static void fixXEvent(Display *display, XEvent *event) {
 	MYNAME(fixXEvent)
 
@@ -160,14 +169,15 @@ static void fixXEvent(Display *display, XEvent *event) {
 
 	if (event->type == ButtonPress || event->type == ButtonRelease) {
 		debug(myname, "ButtonPress || ButtonRelease\n");
-		if (event->xbutton.button == 4 || event->xbutton.button == 5) {
-			debug(myname, "scroll button\n");
-			if (event->xbutton.state & ControlMask) {
-				debug(myname, "SCROLL ZOOMING\n");
-			}
-			event->xbutton.state &= ~ControlMask;
-		} else {
-			debug(myname, "button = %d\n", event->xbutton.button);
+		debug(myname, "button = %d\n", event->xbutton.button);
+		switch (event->xbutton.button) {
+			MASKED_BUTTONS_CASES:
+				debug(myname, "scroll button\n");
+				if (event->xbutton.state & ControlMask) {
+					debug(myname, "SCROLL ZOOMING\n");
+				}
+				event->xbutton.state &= ~ControlMask;
+				break;
 		}
 	}
 }
@@ -333,15 +343,17 @@ static void fixXI2Event(Display *display, XGenericEventCookie *event) {
 		debug(myname, "xi2ev->mods.locked = 0x%x\n", xi2ev->mods.locked);
 		debug(myname, "xi2ev->mods.effective = 0x%x\n", xi2ev->mods.effective);
 
-		if (xi2ev->detail == 4 || xi2ev->detail == 5) {
-			debug(myname, "scroll button\n");
-			if (xi2ev->mods.effective & ControlMask) {
-				debug(myname, "SCROLL ZOOMING\n");
-			}
-			xi2ev->mods.base &= ~ControlMask;
-			xi2ev->mods.latched &= ~ControlMask;
-			xi2ev->mods.locked &= ~ControlMask;
-			xi2ev->mods.effective &= ~ControlMask;
+		switch (xi2ev->detail) {
+			MASKED_BUTTONS_CASES:
+				debug(myname, "scroll button\n");
+				if (xi2ev->mods.effective & ControlMask) {
+					debug(myname, "SCROLL ZOOMING\n");
+				}
+				xi2ev->mods.base &= ~ControlMask;
+				xi2ev->mods.latched &= ~ControlMask;
+				xi2ev->mods.locked &= ~ControlMask;
+				xi2ev->mods.effective &= ~ControlMask;
+				break;
 		}
 	}
 }
