@@ -46,11 +46,11 @@
 #if defined(DEBUG)
 static void debug(const char *name, const char *fmt, ...) {
 	va_list ap;
-    fprintf(stderr, "libxunscrollzoom: %s: ", name);
-    va_start(ap, fmt);
-    vfprintf(stderr, fmt, ap);
-    va_end(ap);
-    fflush(stderr);
+	fprintf(stderr, "libxunscrollzoom: %s: ", name);
+	va_start(ap, fmt);
+	vfprintf(stderr, fmt, ap);
+	va_end(ap);
+	fflush(stderr);
 }
 #define MYNAME(x) static const char *myname = #x;
 #else
@@ -66,7 +66,7 @@ static void fatalError(int exitcode, const char *name, const char *fmt, ...) {
 	vfprintf(stderr, fmt, ap);
 	va_end(ap);
 	fflush(stderr);
-    exit(exitcode);
+	exit(exitcode);
 }
 
 
@@ -77,10 +77,8 @@ static void _libxunscrollzoom_fini(void) __attribute__((destructor));
 static void _libxunscrollzoom_init(void) {
 	debug("init", "starting up\n");
 
-    // FIXME: tabs vs spaces
-
-    // FIXME: optional - a "ONESHOT" envvar which tells us to clear LD_PRELOAD and all our envvars.
-    //unsetenv("LD_PRELOAD");
+	// FIXME: optional - a "ONESHOT" envvar which tells us to clear LD_PRELOAD and all our envvars.
+	//unsetenv("LD_PRELOAD");
 }
 
 static void _libxunscrollzoom_fini(void) {
@@ -124,13 +122,13 @@ void registerLibHandle();
 
 #define REGISTER_INTERCEPT_1 REGISTER_INTERCEPT_0 REGISTER_INTERCEPT(XOpenDisplay)
 __INTERCEPT__(
-              XOpenDisplay,
-              Display*,
-              (_Xconst char *display_name),
-              (display_name),
-                  registerLibHandle();
-                  registerAllIntercepts();
-			  ,
+			XOpenDisplay,
+			Display*,
+			(_Xconst char *display_name),
+			(display_name),
+				registerLibHandle();
+				registerAllIntercepts();
+			,
 			 )
 
 
@@ -145,16 +143,16 @@ static void fixXEvent(Display *display, XEvent *event) {
 	}
 
 	if (event->type == ButtonPress || event->type == ButtonRelease) {
-        debug(myname, "ButtonPress || ButtonRelease\n");
+		debug(myname, "ButtonPress || ButtonRelease\n");
 		if (event->xbutton.button == 4 || event->xbutton.button == 5) {
 			debug(myname, "scroll button\n");
-            if (event->xbutton.state & ControlMask) {
-                debug(myname, "SCROLL ZOOMING\n");
-            }
+			if (event->xbutton.state & ControlMask) {
+				debug(myname, "SCROLL ZOOMING\n");
+			}
 			event->xbutton.state &= ~ControlMask;
 		} else {
-            debug(myname, "button = %d\n", event->xbutton.button);
-        }
+			debug(myname, "button = %d\n", event->xbutton.button);
+		}
 	}
 }
 
@@ -169,83 +167,83 @@ static void fixXEvent(Display *display, XEvent *event) {
 
 #define REGISTER_INTERCEPT_2 REGISTER_INTERCEPT_1 REGISTER_INTERCEPT(XNextEvent)
 __INTERCEPT__(
-              XNextEvent,
-              int,
-              (Display *display, XEvent *event),
-              (display, event),
-			  ,
-              FIX_EVENT
+				XNextEvent,
+				int,
+				(Display *display, XEvent *event),
+				(display, event),
+				,
+				FIX_EVENT
 			 )
 
 
 #define REGISTER_INTERCEPT_3 REGISTER_INTERCEPT_2 REGISTER_INTERCEPT(XPeekEvent)
 __INTERCEPT__(
-              XPeekEvent,
-              int,
-              (Display *display, XEvent *event),
-              (display, event),
-			  ,
-              FIX_EVENT
+				XPeekEvent,
+				int,
+				(Display *display, XEvent *event),
+				(display, event),
+				,
+				FIX_EVENT
 			 )
 
 #define REGISTER_INTERCEPT_4 REGISTER_INTERCEPT_3 REGISTER_INTERCEPT(XWindowEvent)
 __INTERCEPT__(
-              XWindowEvent,
-              int,
-              (Display *display, Window w, long event_mask, XEvent *event),
-              (display, w, event_mask, event),
-			  ,
-              FIX_EVENT
+				XWindowEvent,
+				int,
+				(Display *display, Window w, long event_mask, XEvent *event),
+				(display, w, event_mask, event),
+				,
+				FIX_EVENT
 			 )
 
 #define REGISTER_INTERCEPT_5 REGISTER_INTERCEPT_4 REGISTER_INTERCEPT(XCheckWindowEvent)
 __INTERCEPT__(
-              XCheckWindowEvent,
-              Bool,
-              (Display *display, Window w, long event_mask, XEvent *event),
-              (display, w, event_mask, event),
-			  ,
-              CHECK_EVENT(FIX_EVENT)
+				XCheckWindowEvent,
+				Bool,
+				(Display *display, Window w, long event_mask, XEvent *event),
+				(display, w, event_mask, event),
+				,
+				CHECK_EVENT(FIX_EVENT)
 			 )
 
 #define REGISTER_INTERCEPT_6 REGISTER_INTERCEPT_5 REGISTER_INTERCEPT(XMaskEvent)
 __INTERCEPT__(
-              XMaskEvent,
-              int,
-              (Display *display, long event_mask, XEvent *event),
-              (display, event_mask, event),
-			  ,
-              FIX_EVENT
+				XMaskEvent,
+				int,
+				(Display *display, long event_mask, XEvent *event),
+				(display, event_mask, event),
+				,
+				FIX_EVENT
 			 )
 
 #define REGISTER_INTERCEPT_7 REGISTER_INTERCEPT_6 REGISTER_INTERCEPT(XCheckMaskEvent)
 __INTERCEPT__(
-              XCheckMaskEvent,
-              Bool,
-              (Display *display, long event_mask, XEvent *event),
-              (display, event_mask, event),
-			  ,
-              CHECK_EVENT(FIX_EVENT)
+				XCheckMaskEvent,
+				Bool,
+				(Display *display, long event_mask, XEvent *event),
+				(display, event_mask, event),
+				,
+				CHECK_EVENT(FIX_EVENT)
 			 )
 
 #define REGISTER_INTERCEPT_8 REGISTER_INTERCEPT_7 REGISTER_INTERCEPT(XCheckTypedEvent)
 __INTERCEPT__(
-              XCheckTypedEvent,
-              Bool,
-              (Display *display, int event_type, XEvent *event),
-              (display, event_type, event),
-			  ,
-              CHECK_EVENT(FIX_EVENT)
+				XCheckTypedEvent,
+				Bool,
+				(Display *display, int event_type, XEvent *event),
+				(display, event_type, event),
+				,
+				CHECK_EVENT(FIX_EVENT)
 			 )
 
 #define REGISTER_INTERCEPT_9 REGISTER_INTERCEPT_8 REGISTER_INTERCEPT(XCheckTypedWindowEvent)
 __INTERCEPT__(
-              XCheckTypedWindowEvent,
-              Bool,
-              (Display *display, Window w, int event_type, XEvent *event),
-              (display, w, event_type, event),
-			  ,
-              CHECK_EVENT(FIX_EVENT)
+				XCheckTypedWindowEvent,
+				Bool,
+				(Display *display, Window w, int event_type, XEvent *event),
+				(display, w, event_type, event),
+				,
+				CHECK_EVENT(FIX_EVENT)
 			 )
 
 
@@ -255,50 +253,50 @@ typedef struct {
 } ShimArg;
 
 static Bool shimPredicate(Display *display, XEvent *event, XPointer arg) {
-    ShimArg *newArg = (ShimArg*) arg;
-    FIX_EVENT
-    return newArg->origPredicate(display, event, newArg->origArg);
+	ShimArg *newArg = (ShimArg*) arg;
+	FIX_EVENT
+	return newArg->origPredicate(display, event, newArg->origArg);
 }
 
 #define SHIM_IFEVENT \
-    ShimArg newArg; \
-    newArg.origPredicate = predicate; \
-    newArg.origArg = arg; \
-    arg = (XPointer) &newArg; \
-    predicate = shimPredicate; \
+	ShimArg newArg; \
+	newArg.origPredicate = predicate; \
+	newArg.origArg = arg; \
+	arg = (XPointer) &newArg; \
+	predicate = shimPredicate; \
 
 
 #define REGISTER_INTERCEPT_10 REGISTER_INTERCEPT_9 REGISTER_INTERCEPT(XIfEvent)
 __INTERCEPT__(
-              XIfEvent,
-              int,
-              (Display *display, XEvent *event, Bool (*predicate)(), XPointer arg),
-              (display, event, predicate, arg),
-              SHIM_IFEVENT
-              ,
-              FIX_EVENT
+				XIfEvent,
+				int,
+				(Display *display, XEvent *event, Bool (*predicate)(), XPointer arg),
+				(display, event, predicate, arg),
+				SHIM_IFEVENT
+				,
+				FIX_EVENT
 			 )
 
 #define REGISTER_INTERCEPT_11 REGISTER_INTERCEPT_10 REGISTER_INTERCEPT(XCheckIfEvent)
 __INTERCEPT__(
-              XCheckIfEvent,
-              Bool,
-              (Display *display, XEvent *event, Bool (*predicate)(), XPointer arg),
-              (display, event, predicate, arg),
-              SHIM_IFEVENT
-              ,
-              CHECK_EVENT(FIX_EVENT)
+				XCheckIfEvent,
+				Bool,
+				(Display *display, XEvent *event, Bool (*predicate)(), XPointer arg),
+				(display, event, predicate, arg),
+				SHIM_IFEVENT
+				,
+				CHECK_EVENT(FIX_EVENT)
 			 )
 
 #define REGISTER_INTERCEPT_12 REGISTER_INTERCEPT_11 REGISTER_INTERCEPT(XPeekIfEvent)
 __INTERCEPT__(
-              XPeekIfEvent,
-              int,
-              (Display *display, XEvent *event, Bool (*predicate)(), XPointer arg),
-              (display, event, predicate, arg),
-              SHIM_IFEVENT
-              ,
-              FIX_EVENT
+				XPeekIfEvent,
+				int,
+				(Display *display, XEvent *event, Bool (*predicate)(), XPointer arg),
+				(display, event, predicate, arg),
+				SHIM_IFEVENT
+				,
+				FIX_EVENT
 			 )
 
 
@@ -308,43 +306,43 @@ static int xi2opcode = -1;
 static void fixXI2Event(Display *display, XGenericEventCookie *event) {
 	MYNAME(fixXI2Event)
 
-    if (event->evtype == XI_ButtonPress || event->evtype == XI_ButtonRelease) {
-        debug(myname, "XI_ButtonPress || XI_ButtonRelease\n");
+	if (event->evtype == XI_ButtonPress || event->evtype == XI_ButtonRelease) {
+		debug(myname, "XI_ButtonPress || XI_ButtonRelease\n");
 
-        XIDeviceEvent *xi2ev = (XIDeviceEvent*) event->data;
+		XIDeviceEvent *xi2ev = (XIDeviceEvent*) event->data;
 
-        debug(myname, "xi2ev->detail = %u\n", xi2ev->detail);
-        debug(myname, "xi2ev->mods.base = 0x%x\n", xi2ev->mods.base);
-        debug(myname, "xi2ev->mods.latched = 0x%x\n", xi2ev->mods.latched);
-        debug(myname, "xi2ev->mods.locked = 0x%x\n", xi2ev->mods.locked);
-        debug(myname, "xi2ev->mods.effective = 0x%x\n", xi2ev->mods.effective);
+		debug(myname, "xi2ev->detail = %u\n", xi2ev->detail);
+		debug(myname, "xi2ev->mods.base = 0x%x\n", xi2ev->mods.base);
+		debug(myname, "xi2ev->mods.latched = 0x%x\n", xi2ev->mods.latched);
+		debug(myname, "xi2ev->mods.locked = 0x%x\n", xi2ev->mods.locked);
+		debug(myname, "xi2ev->mods.effective = 0x%x\n", xi2ev->mods.effective);
 
 		if (xi2ev->detail == 4 || xi2ev->detail == 5) {
 			debug(myname, "scroll button\n");
-            if (xi2ev->mods.effective & ControlMask) {
-                debug(myname, "SCROLL ZOOMING\n");
-            }
+			if (xi2ev->mods.effective & ControlMask) {
+				debug(myname, "SCROLL ZOOMING\n");
+			}
 			xi2ev->mods.base &= ~ControlMask;
 			xi2ev->mods.latched &= ~ControlMask;
 			xi2ev->mods.locked &= ~ControlMask;
 			xi2ev->mods.effective &= ~ControlMask;
-        }
+		}
 	}
 }
 
 
 #define REGISTER_INTERCEPT_13 REGISTER_INTERCEPT_12 REGISTER_INTERCEPT(XQueryExtension)
 __INTERCEPT__(
-              XQueryExtension,
-              Bool,
-              (Display* display, _Xconst char* name, int* major_opcode_return, int* first_event_return, int* first_error_return),
-              (display, name, major_opcode_return, first_event_return, first_error_return),
-			  ,
-              if (retval && !strcmp(name, "XInputExtension") && major_opcode_return) {
-                  xi2initialised = True;
-                  xi2opcode = *major_opcode_return;
-                  debug("XQueryExtension", "XI2 initialised\n");
-              }
+				XQueryExtension,
+				Bool,
+				(Display* display, _Xconst char* name, int* major_opcode_return, int* first_event_return, int* first_error_return),
+				(display, name, major_opcode_return, first_event_return, first_error_return),
+				,
+				if (retval && !strcmp(name, "XInputExtension") && major_opcode_return) {
+					xi2initialised = True;
+					xi2opcode = *major_opcode_return;
+					debug("XQueryExtension", "XI2 initialised\n");
+				}
 			 )
 
 
@@ -353,21 +351,21 @@ static void fixCookieEvent(Display *display, XGenericEventCookie *event) {
 		return;
 	}
 
-    if (xi2initialised && event->extension == xi2opcode) {
-        fixXI2Event(display, event);
-    }
+	if (xi2initialised && event->extension == xi2opcode) {
+		fixXI2Event(display, event);
+	}
 }
 
 #define FIX_COOKIE_EVENT fixCookieEvent(display, event);
 
 #define REGISTER_INTERCEPT_14 REGISTER_INTERCEPT_13 REGISTER_INTERCEPT(XGetEventData)
 __INTERCEPT__(
-              XGetEventData,
-              Bool,
-              (Display* display, XGenericEventCookie *event),
-              (display, event),
-			  ,
-              CHECK_EVENT(FIX_COOKIE_EVENT)
+				XGetEventData,
+				Bool,
+				(Display* display, XGenericEventCookie *event),
+				(display, event),
+				,
+				CHECK_EVENT(FIX_COOKIE_EVENT)
 			 )
 
 #define REGISTER_INTERCEPT_FINAL REGISTER_INTERCEPT_14
@@ -376,27 +374,27 @@ __INTERCEPT__(
 
 void *registerIntercept(const char *fnname) {
 	static const char *myname = "registerIntercept";
-    void *underlying;
+	void *underlying;
 	const char *err;
 
-    dlerror();
-    underlying = dlsym(lib_handle, fnname);
-    debug(myname, "underlying %s = 0x%x\n", fnname, underlying);
-    err = dlerror();
-    if (err) {
-        debug(myname, "err = \"%s\"\n", err);
-    }
-    if (!underlying || err) {
-        fatalError(1, myname, "Unable to find the underlying function %s: %s\n", fnname, dlerror());
-    }
-    return underlying;
+	dlerror();
+	underlying = dlsym(lib_handle, fnname);
+	debug(myname, "underlying %s = 0x%x\n", fnname, underlying);
+	err = dlerror();
+	if (err) {
+		debug(myname, "err = \"%s\"\n", err);
+	}
+	if (!underlying || err) {
+		fatalError(1, myname, "Unable to find the underlying function %s: %s\n", fnname, dlerror());
+	}
+	return underlying;
 }
 
 void registerLibHandle() {
 	static const char *myname = "registerLibHandle";
-    // This is called from XOpenDisplay, rather than init(), because it's not cool to be dlopening libX11.so for every single binary that gets run.
-    // This way it only happens for things that actually want to use X11.
-    // And XOpenDisplay should only be called rarely/infrequently.
+	// This is called from XOpenDisplay, rather than init(), because it's not cool to be dlopening libX11.so for every single binary that gets run.
+	// This way it only happens for things that actually want to use X11.
+	// And XOpenDisplay should only be called rarely/infrequently.
 	if (!lib_handle) {
 		dlerror();
 #if defined(RTLD_NEXT)
@@ -412,6 +410,6 @@ void registerLibHandle() {
 }
 
 void registerAllIntercepts() {
-    REGISTER_INTERCEPT_FINAL
+	REGISTER_INTERCEPT_FINAL
 }
 
