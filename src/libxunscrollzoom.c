@@ -168,7 +168,11 @@ static void fixXEvent(Display *display, XEvent *event) {
 	}
 
 	if (event->type == ButtonPress || event->type == ButtonRelease) {
-		debug(myname, "ButtonPress || ButtonRelease\n");
+		if (event->type == ButtonPress) {
+			debug(myname, "ButtonPress\n");
+		} else if (event->type == ButtonRelease) {
+			debug(myname, "ButtonRelease\n");
+		}
 		debug(myname, "button = %d\n", event->xbutton.button);
 		switch (event->xbutton.button) {
 			MASKED_BUTTONS_CASES:
@@ -331,30 +335,73 @@ static int xi2opcode = -1;
 
 static void fixXI2Event(Display *display, XGenericEventCookie *event) {
 	MYNAME(fixXI2Event)
+	Bool doit = False;
+	XIDeviceEvent *xi2ev = NULL;
 
-	if (event->evtype == XI_ButtonPress || event->evtype == XI_ButtonRelease) {
-		debug(myname, "XI_ButtonPress || XI_ButtonRelease\n");
+	if (event->evtype == XI_ButtonPress || event->evtype == XI_ButtonRelease || event->evtype == XI_Motion) {
+		if (event->evtype == XI_ButtonPress) {
+			debug(myname, "XI_ButtonPress\n");
+		} else if (event->evtype == XI_ButtonRelease) {
+			debug(myname, "XI_ButtonRelease\n");
+		} else if (event->evtype == XI_Motion) {
+			debug(myname, "XI_Motion\n");
+		}
 
-		XIDeviceEvent *xi2ev = (XIDeviceEvent*) event->data;
+		xi2ev = (XIDeviceEvent*) event->data;
 
 		debug(myname, "xi2ev->detail = %u\n", xi2ev->detail);
+		debug(myname, "xi2ev->root_x = %lf\n", xi2ev->root_x);
+		debug(myname, "xi2ev->root_y = %lf\n", xi2ev->root_y);
+		debug(myname, "xi2ev->event_x = %lf\n", xi2ev->event_x);
+		debug(myname, "xi2ev->event_y = %lf\n", xi2ev->event_y);
+		//debug(myname, "xi2ev->flags = %u\n", xi2ev->flags);
 		debug(myname, "xi2ev->mods.base = 0x%x\n", xi2ev->mods.base);
 		debug(myname, "xi2ev->mods.latched = 0x%x\n", xi2ev->mods.latched);
 		debug(myname, "xi2ev->mods.locked = 0x%x\n", xi2ev->mods.locked);
 		debug(myname, "xi2ev->mods.effective = 0x%x\n", xi2ev->mods.effective);
+		//debug(myname, "xi2ev->group.base = 0x%x\n", xi2ev->group.base);
+		//debug(myname, "xi2ev->group.latched = 0x%x\n", xi2ev->group.latched);
+		//debug(myname, "xi2ev->group.locked = 0x%x\n", xi2ev->group.locked);
+		//debug(myname, "xi2ev->group.effective = 0x%x\n", xi2ev->group.effective);
+		//debug(myname, "xi2ev->buttons.mask_len = %d\n", xi2ev->buttons.mask_len);
+		//for (unsigned int i = 0; i < xi2ev->buttons.mask_len; i++) {
+		//	debug(myname, "xi2ev->buttons.mask[%d] = 0x%x\n", i, xi2ev->buttons.mask[i]);
+		//}
+		debug(myname, "xi2ev->valuators.mask_len = %d\n", xi2ev->valuators.mask_len);
+		for (unsigned int i = 0; i < xi2ev->valuators.mask_len; i++) {
+			debug(myname, "xi2ev->valuators.mask[%d] = 0x%x\n", i, xi2ev->valuators.mask[i]);
+		}
+		// FIXME: print the valuators values...
+		// FIXME: should this be 8 times as many?  or only the number of set bits in the valuators mask?
+		for (unsigned int i = 0; i < xi2ev->valuators.mask_len; i++) {
+			debug(myname, "xi2ev->valuators.values[%d] = %lf\n", i, xi2ev->valuators.values[i]);
+		}
 
 		switch (xi2ev->detail) {
 			MASKED_BUTTONS_CASES:
 				debug(myname, "scroll button\n");
-				if (xi2ev->mods.effective & ControlMask) {
-					debug(myname, "SCROLL ZOOMING\n");
-				}
-				xi2ev->mods.base &= ~ControlMask;
-				xi2ev->mods.latched &= ~ControlMask;
-				xi2ev->mods.locked &= ~ControlMask;
-				xi2ev->mods.effective &= ~ControlMask;
+				doit = True;
 				break;
 		}
+	}
+
+	if (event->evtype == XI_Motion) {
+		// FIXME: this is dodgy as
+		xi2ev = (XIDeviceEvent*) event->data;
+		if ( xi2ev->valuators.mask[0] & ( (1<<2) | (1<<3) ) ) {
+			debug(myname, "scroll motion\n");
+			doit = True;
+		}
+	}
+
+	if (doit && xi2ev) {
+		if (xi2ev->mods.effective & ControlMask) {
+			debug(myname, "SCROLL ZOOMING\n");
+		}
+		xi2ev->mods.base &= ~ControlMask;
+		xi2ev->mods.latched &= ~ControlMask;
+		xi2ev->mods.locked &= ~ControlMask;
+		xi2ev->mods.effective &= ~ControlMask;
 	}
 }
 
