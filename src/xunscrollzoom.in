@@ -68,5 +68,6 @@ while :; do
 	esac
 done
 
+# FIXME: don't add this to LD_PRELOAD if it's already there.
 LD_PRELOAD="@libdir@/libxunscrollzoom${lib_suffix}.so:$LD_PRELOAD" exec "$@"
 
