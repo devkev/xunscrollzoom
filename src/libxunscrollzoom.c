@@ -153,6 +153,7 @@ __INTERCEPT__(
 
 // Seems most software (terminology and firefox at least) also zoom when ctrl + horizontal scroll.
 // So include buttons 6 & 7 as well.
+// These button numbers are pretty much well-known/canonical, even though technically they can be reassigned (I think).
 #define MASKED_BUTTONS_CASES \
 	case 4: \
 	case 5: \
@@ -330,8 +331,22 @@ __INTERCEPT__(
 			 )
 
 
+#if defined(DEBUG)
+// This is only used when debug printing of the valuator values.
+static const unsigned char oneBits[] = {0,1,1,2,1,2,2,3,1,2,2,3,2,3,3,4};
+static unsigned char CountOnes(unsigned char x) {
+	unsigned char results;
+	results = oneBits[x & 0x0f];
+	results += oneBits[x>>4];
+	return results;
+}
+#endif
+
 static Bool xi2initialised = False;
 static int xi2opcode = -1;
+static int lastMotionSourceId = -1;
+static int valuatorMaskLen = -1;
+static unsigned char *valuatorMask = NULL;
 
 static void fixXI2Event(Display *display, XGenericEventCookie *event) {
 	MYNAME(fixXI2Event)
@@ -350,10 +365,10 @@ static void fixXI2Event(Display *display, XGenericEventCookie *event) {
 		xi2ev = (XIDeviceEvent*) event->data;
 
 		debug(myname, "xi2ev->detail = %u\n", xi2ev->detail);
-		debug(myname, "xi2ev->root_x = %lf\n", xi2ev->root_x);
-		debug(myname, "xi2ev->root_y = %lf\n", xi2ev->root_y);
-		debug(myname, "xi2ev->event_x = %lf\n", xi2ev->event_x);
-		debug(myname, "xi2ev->event_y = %lf\n", xi2ev->event_y);
+		//debug(myname, "xi2ev->root_x = %lf\n", xi2ev->root_x);
+		//debug(myname, "xi2ev->root_y = %lf\n", xi2ev->root_y);
+		//debug(myname, "xi2ev->event_x = %lf\n", xi2ev->event_x);
+		//debug(myname, "xi2ev->event_y = %lf\n", xi2ev->event_y);
 		//debug(myname, "xi2ev->flags = %u\n", xi2ev->flags);
 		debug(myname, "xi2ev->mods.base = 0x%x\n", xi2ev->mods.base);
 		debug(myname, "xi2ev->mods.latched = 0x%x\n", xi2ev->mods.latched);
@@ -367,30 +382,65 @@ static void fixXI2Event(Display *display, XGenericEventCookie *event) {
 		//for (unsigned int i = 0; i < xi2ev->buttons.mask_len; i++) {
 		//	debug(myname, "xi2ev->buttons.mask[%d] = 0x%x\n", i, xi2ev->buttons.mask[i]);
 		//}
+#if defined(DEBUG)
+		// Don't want to waste time counting bits unless we're actually going to bother printing the values.
+		unsigned int numSetValuators = 0;
 		debug(myname, "xi2ev->valuators.mask_len = %d\n", xi2ev->valuators.mask_len);
 		for (unsigned int i = 0; i < xi2ev->valuators.mask_len; i++) {
-			debug(myname, "xi2ev->valuators.mask[%d] = 0x%x\n", i, xi2ev->valuators.mask[i]);
+			debug(myname, "xi2ev->valuators.mask[%u] = 0x%x\n", i, xi2ev->valuators.mask[i]);
+			numSetValuators += CountOnes(xi2ev->valuators.mask[i]);
 		}
-		// FIXME: print the valuators values...
-		// FIXME: should this be 8 times as many?  or only the number of set bits in the valuators mask?
-		for (unsigned int i = 0; i < xi2ev->valuators.mask_len; i++) {
-			debug(myname, "xi2ev->valuators.values[%d] = %lf\n", i, xi2ev->valuators.values[i]);
+		for (unsigned int i = 0; i < numSetValuators; i++) {
+			debug(myname, "xi2ev->valuators.values[%u] = %lf\n", i, xi2ev->valuators.values[i]);
 		}
+#endif
 
+		// detail is always 0 for Motion events
 		switch (xi2ev->detail) {
 			MASKED_BUTTONS_CASES:
 				debug(myname, "scroll button\n");
 				doit = True;
 				break;
 		}
-	}
 
-	if (event->evtype == XI_Motion) {
-		// FIXME: this is dodgy as
-		xi2ev = (XIDeviceEvent*) event->data;
-		if ( xi2ev->valuators.mask[0] & ( (1<<2) | (1<<3) ) ) {
-			debug(myname, "scroll motion\n");
-			doit = True;
+		// FIXME: This will be inefficient when there are 2 or more pointing devices generating events interleaved.
+		// So better might be to remember all of the sourceids that we've seen and their corresponding valuator masks.
+		// HOWEVER, given that I don't know how long it's valid to cache info about devices (by id),
+		// since they can be hot plugged/unplugged at any time (and ids seem to maybe be reused?),
+		// it seems like a good idea to not be too aggressive about this.  Yet.  Maybe.
+		// There might be events that can be listened for to notice when devices are plugged/unplugged,
+		// and then maybe that's the point at which we should capture and cache (or discard) this info.
+		if (event->evtype == XI_Motion && xi2ev->sourceid != lastMotionSourceId) {
+			// we need to get the scroll class info, so that we know which valuators to mask
+			free(valuatorMask);
+			valuatorMaskLen = xi2ev->valuators.mask_len;
+			valuatorMask = calloc(valuatorMaskLen, sizeof(unsigned char));
+			int ndevices = 0;
+			XIDeviceInfo *devices = XIQueryDevice(display, xi2ev->sourceid, &ndevices);
+			if (ndevices == 1) {
+				for (unsigned int i = 0; i < devices->num_classes; i++) {
+					if (devices->classes[i]->type == XIScrollClass) {
+						XIScrollClassInfo *scroll = (XIScrollClassInfo *) devices->classes[i];
+						unsigned int byteNum = scroll->number / 8;
+						unsigned int bitNum = scroll->number % 8;
+						valuatorMask[byteNum] |= (1<<bitNum);
+					}
+				}
+				//debug(myname, "valuatorMaskLen = %d\n", valuatorMaskLen);
+				//for (unsigned int i = 0; i < valuatorMaskLen; i++) {
+				//	debug(myname, "valuatorMask[%u] = 0x%x\n", i, valuatorMask[i]);
+				//}
+				lastMotionSourceId = xi2ev->sourceid;
+			}
+			XIFreeDeviceInfo(devices);
+		}
+
+		for (unsigned int i = 0; i < valuatorMaskLen; i++) {
+			if (xi2ev->valuators.mask[i] & valuatorMask[i]) {
+				debug(myname, "scroll motion (%u)\n", i);
+				doit = True;
+				break;
+			}
 		}
 	}
 
