@@ -410,6 +410,11 @@ static void fixXI2Event(Display *display, XGenericEventCookie *event) {
 		// it seems like a good idea to not be too aggressive about this.  Yet.  Maybe.
 		// There might be events that can be listened for to notice when devices are plugged/unplugged,
 		// and then maybe that's the point at which we should capture and cache (or discard) this info.
+		// Yeah, it seems to be XI_HierarchyChanged (usually on root window, but could be anywhere) in the mask passed
+		// to XISelectEvents, and then monitoring for these XIHierarchyEvents in XGetEventData().
+		// Possibly also monitoring for XIDeviceChangedEvent (which is more like reconfigging a device).
+		// See: https://who-t.blogspot.com/2009/06/xi2-recipies-part-2.html
+		// and: https://who-t.blogspot.com/2009/06/xi2-recipes-part-3.html
 		if (event->evtype == XI_Motion && xi2ev->sourceid != lastMotionSourceId) {
 			// we need to get the scroll class info, so that we know which valuators to mask
 			free(valuatorMask);
