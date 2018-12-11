@@ -68,6 +68,9 @@ while :; do
 	esac
 done
 
+# FIXME: also provide a "unxunscrollzoom" script, which will *remove* this from
+# LD_PRELOAD, if present, and then run the program.
+
 # FIXME: don't add this to LD_PRELOAD if it's already there.
 LD_PRELOAD="@libdir@/libxunscrollzoom${lib_suffix}.so:$LD_PRELOAD" exec "$@"
 

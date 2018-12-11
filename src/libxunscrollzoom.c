@@ -81,6 +81,10 @@ static void _libxunscrollzoom_fini(void) __attribute__((destructor));
 static void _libxunscrollzoom_init(void) {
 	debug("init", "starting up, LD_PRELOAD = \"%s\"\n", getenv("LD_PRELOAD"));
 
+	// FIXME: It'd be nice to have an envvar in which we could list patterns for argv[0] which
+	// are a whitelist of programs that we shouldn't impact.
+	// eg. I don't mind ctrl-wheel zooming in gimp or audacity.
+
 	if (getenv(libxunscrollzoom_envvar_single)) {
 		const char *ld_preload = getenv("LD_PRELOAD");
 		if (ld_preload == NULL) {
