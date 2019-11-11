@@ -424,31 +424,37 @@ static void fixXI2Event(Display *display, XGenericEventCookie *event) {
 			free(valuatorMask);
 			valuatorMaskLen = xi2ev->valuators.mask_len;
 			valuatorMask = calloc(valuatorMaskLen, sizeof(unsigned char));
-			int ndevices = 0;
-			XIDeviceInfo *devices = XIQueryDevice(display, xi2ev->sourceid, &ndevices);
-			if (ndevices == 1) {
-				for (unsigned int i = 0; i < devices->num_classes; i++) {
-					if (devices->classes[i]->type == XIScrollClass) {
-						XIScrollClassInfo *scroll = (XIScrollClassInfo *) devices->classes[i];
-						unsigned int byteNum = scroll->number / 8;
-						unsigned int bitNum = scroll->number % 8;
-						valuatorMask[byteNum] |= (1<<bitNum);
+			if (valuatorMask == NULL) {
+				valuatorMaskLen = -1;
+			} else {
+				int ndevices = 0;
+				XIDeviceInfo *devices = XIQueryDevice(display, xi2ev->sourceid, &ndevices);
+				if (ndevices == 1) {
+					for (unsigned int i = 0; i < devices->num_classes; i++) {
+						if (devices->classes[i]->type == XIScrollClass) {
+							XIScrollClassInfo *scroll = (XIScrollClassInfo *) devices->classes[i];
+							unsigned int byteNum = scroll->number / 8;
+							unsigned int bitNum = scroll->number % 8;
+							valuatorMask[byteNum] |= (1<<bitNum);
+						}
 					}
+					//debug(myname, "valuatorMaskLen = %d\n", valuatorMaskLen);
+					//for (unsigned int i = 0; i < valuatorMaskLen; i++) {
+					//	debug(myname, "valuatorMask[%u] = 0x%x\n", i, valuatorMask[i]);
+					//}
+					lastMotionSourceId = xi2ev->sourceid;
 				}
-				//debug(myname, "valuatorMaskLen = %d\n", valuatorMaskLen);
-				//for (unsigned int i = 0; i < valuatorMaskLen; i++) {
-				//	debug(myname, "valuatorMask[%u] = 0x%x\n", i, valuatorMask[i]);
-				//}
-				lastMotionSourceId = xi2ev->sourceid;
+				XIFreeDeviceInfo(devices);
 			}
-			XIFreeDeviceInfo(devices);
 		}
 
-		for (unsigned int i = 0; i < valuatorMaskLen; i++) {
-			if (xi2ev->valuators.mask[i] & valuatorMask[i]) {
-				debug(myname, "scroll motion (%u)\n", i);
-				doit = True;
-				break;
+		if (valuatorMaskLen >= 0) {
+			for (unsigned int i = 0; i < valuatorMaskLen; i++) {
+				if (xi2ev->valuators.mask[i] & valuatorMask[i]) {
+					debug(myname, "scroll motion (%u)\n", i);
+					doit = True;
+					break;
+				}
 			}
 		}
 	}
