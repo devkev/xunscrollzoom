@@ -73,6 +73,19 @@ done
 # FIXME: also provide a "unxunscrollzoom" script, which will *remove* this from
 # LD_PRELOAD, if present, and then run the program.
 
-# FIXME: don't add this to LD_PRELOAD if it's already there.
-LD_PRELOAD="@libdir@/libxunscrollzoom${lib_suffix}.so:$LD_PRELOAD" exec "$@"
+# don't add this to LD_PRELOAD if it's already there.
+my_ld_preload="@libdir@/libxunscrollzoom${lib_suffix}.so"
+case "$LD_PRELOAD" in
+	"")
+		LD_PRELOAD="$my_ld_preload"
+		;;
+	"$my_ld_preload"|"$my_ld_preload":*|*:"$my_ld_preload"|*:"$my_ld_preload":*)
+		;;
+	*)
+		LD_PRELOAD="@libdir@/libxunscrollzoom${lib_suffix}.so:$LD_PRELOAD"
+		;;
+esac
+export LD_PRELOAD
+
+exec "$@"
 
