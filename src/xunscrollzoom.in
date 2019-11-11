@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 
 # libxunscrollzoom: ignore when ctrl is held down while scrolling the mouse wheel
 # Copyright (C) 2018 Kevin Pulo
@@ -21,11 +21,13 @@
 # Kevin Pulo
 # kev@pulo.com.au
 
-function version {
+version()
+{
 	echo "xunscrollzoom version @version@"
 }
 
-function help {
+help()
+{
 	version
 	echo "Usage:"
 	echo -n "    xunscrollzoom"
