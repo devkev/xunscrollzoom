@@ -1,17 +1,59 @@
-
-LIBXUNSCROLLZOOM 0.1
-=====================
+LIBXUNSCROLLZOOM
+=================
 
 by Kevin Pulo, kev@pulo.com.au
 https://github.com/devkev/libxunscrollzoom/
-Copyright (c) 2018
+Copyright (c) 2019
 Licensed under the GNU GPL v2 or higher, as per the COPYING file.
+
+
+SUMMARY
+-------
+
+In X11 programs, ignore when the Ctrl key is held down while scrolling with the
+pointing device.
 
 
 DESCRIPTION
 -----------
 
-...
+In many graphical programs (including some terminal emulators), holding down
+the control key while scrolling the mouse wheel controls the zoom level.
+
+However, the implementation of this in X11 programs/frameworks is, at best,
+abysmal, because there is no proper link between the widget being zoomed and
+the keyboard/mouse events controlling the zoom (or even between the keyboard
+and mouse events themselves).
+
+For example, with the inertial scrolling found on many touchpads, it is
+possible to "fling" the scroll so that it continues long after the gesture has
+ended, and/or long after it has finished having any effect (eg. the view has
+hit the top/bottom and can scroll no further in the desired direction).  If
+during this time the user depresses the control key, for example to activate
+some unrelated keyboard shortcut/command, then the system will apply the
+control modifier to the scroll events, causing unintended zooming.  This
+behaviour is an anathema to me, and I eventually decided to stop putting up
+with it.
+
+The solution implemented here is to completely disable ctrl-scroll actions in
+programs started with this utility.  Since I almost never intentionally use the
+ctrl-scroll action, and most programs include an alternate mechanism for
+zooming (eg. ctrl-plus/minus), this suits me just fine.
+
+The utility works by injecting an $LD_PRELOAD library into launched programs.
+This intercepts the input events returned by X11 (and the Xi/Xi2 Xinput
+frameworks) and clears the Control modifier bit on scroll events, leaving them
+as regular scroll events (as if the Ctrl key wasn't pressed).
+
+It works quite nicely on most of the programs I routinely use, including:
+
+- Firefox
+- Chrome
+- Terminology
+- Gimp
+- Libreoffice
+- Audacity
+- Inkscape
 
 
 INSTALLATION
@@ -31,17 +73,20 @@ Valid options are:
     -h, --help      Display this help
     -d, --debug     Display debug info
 
-
-EXAMPLEs
---------
-
-...
+    --single        Affect only the specified program, and not any
+                    other subsequently forked processes
 
 
 LIMITATIONS
 -----------
 
-- Only dynamically linked binaries
+- Only dynamically linked binaries.
+
+- SELinux/Apparmor can get in the way, denying permission to map the dynamic
+  library (necessary to load it) and giving an error message like:
+    ```
+    ERROR: ld.so: object '/usr/local/lib/libxunscrollzoom.so' from LD_PRELOAD cannot be preloaded (failed to map segment from shared object): ignored.
+    ```
 
 
 FEEDBACK
@@ -49,11 +94,4 @@ FEEDBACK
 
 Comments, feature suggestions, bug reports, patches, etc are most
 welcome, please send them to Kevin Pulo <kev@pulo.com.au>.
-
-
-SEE ALSO
---------
-
-...
-
 
