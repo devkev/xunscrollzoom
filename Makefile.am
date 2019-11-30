@@ -1,4 +1,4 @@
-# libxunscrollzoom: ignore when ctrl is held down while scrolling the mouse wheel
+# xunscrollzoom: ignore when ctrl is held down while scrolling the mouse wheel
 # Copyright (C) 2019 Kevin Pulo
 # 
 # This library is free software; you can redistribute it and/or

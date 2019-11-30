@@ -1,4 +1,4 @@
-# libxunscrollzoom: ignore when ctrl is held down while scrolling the mouse wheel
+# xunscrollzoom: ignore when ctrl is held down while scrolling the mouse wheel
 # Copyright (C) 2019 Kevin Pulo
 # 
 # This library is free software; you can redistribute it and/or
@@ -20,7 +20,7 @@
 # kev@pulo.com.au
 
 AC_PREREQ(2.5)
-AC_INIT(libunscrollzoom, [0.3], [kev@pulo.com.au])
+AC_INIT(unxscrollzoom, [0.3], [kev@pulo.com.au])
 AC_CONFIG_SRCDIR([src/libxunscrollzoom.c])
 AM_INIT_AUTOMAKE
 AM_CONFIG_HEADER([config.h])
