@@ -20,7 +20,7 @@
 # kev@pulo.com.au
 
 AC_PREREQ(2.5)
-AC_INIT(unxscrollzoom, [0.3], [kev@pulo.com.au])
+AC_INIT(xunscrollzoom, [0.3], [kev@pulo.com.au])
 AC_CONFIG_SRCDIR([src/libxunscrollzoom.c])
 AM_INIT_AUTOMAKE
 AM_CONFIG_HEADER([config.h])
