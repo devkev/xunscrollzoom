@@ -28,12 +28,12 @@ CFLAGS += -Wall
 lib_LTLIBRARIES = libxunscrollzoom.la
 libxunscrollzoom_la_SOURCES = libxunscrollzoom.c
 libxunscrollzoom_la_CFLAGS = -O1
-libxunscrollzoom_la_LIBADD = -ldl -lXi
+libxunscrollzoom_la_LIBADD = -ldl -l:libXi.a
 
 lib_LTLIBRARIES += libxunscrollzoom-debug.la
 libxunscrollzoom_debug_la_SOURCES = libxunscrollzoom.c
 libxunscrollzoom_debug_la_CFLAGS = -O1 -DDEBUG
-libxunscrollzoom_debug_la_LIBADD = -ldl -lXi
+libxunscrollzoom_debug_la_LIBADD = -ldl -l:libXi.a
 
 
 #dist_man_MANS = libxunscrollzoom.1 xunscrollzoom.1 xunscrollzoom-debug.1
